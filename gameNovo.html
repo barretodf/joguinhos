@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Nave de Tiro 2D</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: rgb(0, 12, 2);
+            color: rgb(4, 241, 225);
+        }
+        canvas {
+            border: 1px solid rgb(4, 241, 225);
+        }
+        #scoreboard {
+            margin: 10px;
+            font-size: 20px;
+        }
+        #restartButton {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 18px;
+            display: none;  /* Esconde o botão inicialmente */
+            background-color: black;
+            color: rgb(6, 199, 252);
+            border: 1px solid rgb(4, 241, 225);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="700" height="550"></canvas>
+    <div id="scoreboard">Pontuação: 0 | Vidas: 10 | Nível: 1</div>
+    <button id="restartButton" onclick="restartGame()">Reiniciar Jogo</button>
+
+    <audio id="shootSound" src="shoot.mp3"></audio>
+    <audio id="explosionSound" src="explosion.mp3"></audio>
+    <audio id="gameOverSound" src="gameover.mp3"></audio>
+
+    <script>
+        // Definição de variáveis globais
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const shootSound = document.getElementById("shootSound");
+        const explosionSound = document.getElementById("explosionSound");
+        const gameOverSound = document.getElementById("gameOverSound");
+
+        let shipX, shipY, shipWidth, shipHeight;
+        let bullets = [];
+        let asteroids = [];
+        let score, lives, level;
+        let gameOver = false;
+
+        let leftPressed = false;
+        let rightPressed = false;
+
+        // Função para iniciar o jogo
+        function initializeGame() {
+            shipX = canvas.width / 2 - 20;
+            shipY = canvas.height - 40;
+            shipWidth = 40;
+            shipHeight = 20;
+            bullets = [];
+            asteroids = [];
+            score = 0;
+            lives = 3;
+            level = 1;
+            gameOver = false;
+
+            document.getElementById("restartButton").style.display = "none";  // Esconde o botão ao iniciar
+            updateScoreboard();
+            gameLoop();  // Inicia o loop do jogo
+        }
+
+        // Função de reinício de jogo
+        function restartGame() {
+            initializeGame();  // Reseta os parâmetros do jogo e recomeça
+        }
+
+        // Eventos de teclado
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowLeft") {
+                leftPressed = true;
+            } else if (event.key === "ArrowRight") {
+                rightPressed = true;
+            } else if (event.key === " ") {
+                shootBullet();
+            }
+        });
+
+        document.addEventListener("keyup", (event) => {
+            if (event.key === "ArrowLeft") {
+                leftPressed = false;
+            } else if (event.key === "ArrowRight") {
+                rightPressed = false;
+            }
+        });
+
+        // Movimento da nave
+        function updateShipPosition() {
+            if (leftPressed && shipX > 0) {
+                shipX -= 7;
+            }
+            if (rightPressed && shipX + shipWidth < canvas.width) {
+                shipX += 7;
+            }
+        }
+
+        // Função de atualização do placar
+        function updateScoreboard() {
+            const scoreboard = document.getElementById("scoreboard");
+            scoreboard.innerHTML = `Pontuação: ${score} | Vidas: ${lives} | Nível: ${level}`;
+        }
+
+        // Função para desenhar a nave
+        function drawShip() {
+            ctx.fillStyle = "blue";
+            ctx.fillRect(shipX, shipY, shipWidth, shipHeight);
+        }
+
+        // Função para disparar uma bala
+        function shootBullet() {
+            if (!gameOver) {
+                bullets.push({ x: shipX + shipWidth / 2 - 2, y: shipY });
+                shootSound.play();
+            }
+        }
+
+        // Função para atualizar as balas
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].y -= 5; // Aumente a velocidade se necessário
+                if (bullets[i].y < 0) {
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+
+        // Função para desenhar as balas
+        function drawBullets() {
+            ctx.fillStyle = "yellow";
+            for (let bullet of bullets) {
+                ctx.fillRect(bullet.x, bullet.y, 4, 10);
+            }
+        }
+
+        // Função para gerar asteroides
+        function generateAsteroids() {
+            if (Math.random() < 0.02) {
+                asteroids.push({ x: Math.random() * (canvas.width - 30), y: 0, width: 30, height: 30 });
+            }
+        }
+
+        // Função para desenhar asteroides
+        function drawAsteroids() {
+            ctx.fillStyle = "red";
+            for (let asteroid of asteroids) {
+                ctx.fillRect(asteroid.x, asteroid.y, asteroid.width, asteroid.height);
+                asteroid.y += 3;  // Velocidade de queda dos asteroides
+
+                // Verifica se um asteroide sai da tela
+                if (asteroid.y > canvas.height) {
+                    asteroids.shift(); // Remove asteroides que saíram da tela
+                }
+            }
+        }
+
+        // Função para verificar colisões
+        function checkCollisions() {
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                // Colisão entre nave e asteroide
+                if (
+                    shipX < asteroids[i].x + asteroids[i].width &&
+                    shipX + shipWidth > asteroids[i].x &&
+                    shipY < asteroids[i].y + asteroids[i].height &&
+                    shipY + shipHeight > asteroids[i].y
+                ) {
+                    asteroids.splice(i, 1); // Remove o asteroide que colidiu
+                    lives--;
+                    explosionSound.play();
+                    if (lives <= 0) {
+                        gameOver = true; // Marca o jogo como terminado
+                    }
+                }
+                // Colisão entre bala e asteroide
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    if (
+                        bullets[j].x < asteroids[i].x + asteroids[i].width &&
+                        bullets[j].x + 4 > asteroids[i].x &&
+                        bullets[j].y < asteroids[i].y + asteroids[i].height &&
+                        bullets[j].y + 10 > asteroids[i].y
+                    ) {
+                        asteroids.splice(i, 1); // Remove o asteroide que foi atingido
+                        bullets.splice(j, 1); // Remove a bala que atingiu o asteroide
+                        score += 10; // Adiciona pontos
+                        explosionSound.play();
+                        break; // Sai do loop após a colisão
+                    }
+                }
+            }
+        }
+
+        // Função para desenhar "Game Over"
+        function drawGameOver() {
+            ctx.fillStyle = "white";
+            ctx.font = "30px Arial";
+            ctx.fillText("Game Over", canvas.width / 2 - 80, canvas.height / 2);
+            gameOverSound.play();
+            document.getElementById("restartButton").style.display = "block"; // Mostra o botão de reinício
+        }
+
+        // Loop principal do jogo
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (!gameOver) {
+                updateShipPosition();
+                drawShip();
+                updateBullets();
+                drawBullets();
+                generateAsteroids();
+                drawAsteroids();
+                checkCollisions();
+            } else {
+                drawGameOver();
+            }
+
+            updateScoreboard();
+            requestAnimationFrame(gameLoop); // Continua o loop
+        }
+
+        // Inicializa o jogo ao carregar a página
+        initializeGame();
+    </script>
+</body>
+</html>

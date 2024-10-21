@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Nave 2D</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: black;
+        }
+
+        canvas {
+            border: 1px solid white;
+            background-color: #000;
+        }
+
+        #scoreboard {
+            color: white;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+    <div id="scoreboard"></div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const scoreboard = document.getElementById("scoreboard");
+        
+        // Dimensões e posição da nave
+        const shipWidth = 40;
+        const shipHeight = 20;
+        let shipX = canvas.width / 2 - shipWidth / 2;
+        let shipY = canvas.height - shipHeight - 10;
+        let rightPressed = false;
+        let leftPressed = false;
+        
+        // Projetil
+        let bullets = [];
+        
+        // Asteroides
+        let asteroids = [];
+        const asteroidWidth = 30;
+        const asteroidHeight = 30;
+        
+        // Pontuação e vidas
+        let score = 0;
+        let lives = 3;
+        let gameOver = false;
+        
+        // Controles de navegação
+        document.addEventListener("keydown", keyDownHandler);
+        document.addEventListener("keyup", keyUpHandler);
+        document.addEventListener("keydown", shootBullet);
+
+        function keyDownHandler(event) {
+            if (event.key === "ArrowRight") {
+                rightPressed = true;
+            } else if (event.key === "ArrowLeft") {
+                leftPressed = true;
+            }
+        }
+
+        function keyUpHandler(event) {
+            if (event.key === "ArrowRight") {
+                rightPressed = false;
+            } else if (event.key === "ArrowLeft") {
+                leftPressed = false;
+            }
+        }
+
+        function shootBullet(event) {
+            if (event.key === " " && !gameOver) { // Tecla espaço para atirar
+                bullets.push({ x: shipX + shipWidth / 2 - 2, y: shipY, width: 4, height: 10 });
+            }
+        }
+
+        // Função para desenhar a nave
+        function drawShip() {
+            ctx.fillStyle = "white";
+            ctx.fillRect(shipX, shipY, shipWidth, shipHeight);
+        }
+
+        // Função para desenhar os tiros
+        function drawBullets() {
+            ctx.fillStyle = "red";
+            for (let i = 0; i < bullets.length; i++) {
+                ctx.fillRect(bullets[i].x, bullets[i].y, bullets[i].width, bullets[i].height);
+                bullets[i].y -= 5; // Movimenta o tiro para cima
+
+                // Remove o tiro quando sai da tela
+                if (bullets[i].y < 0) {
+                    bullets.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        // Função para gerar asteroides aleatórios
+        function generateAsteroids() {
+            if (Math.random() < 0.05 && !gameOver) { // 5% de chance de gerar um asteroide a cada frame
+                const x = Math.random() * (canvas.width - asteroidWidth);
+                asteroids.push({ x: x, y: 0, width: asteroidWidth, height: asteroidHeight });
+            }
+        }
+
+        // Função para desenhar asteroides
+        function drawAsteroids() {
+            ctx.fillStyle = "gray";
+            for (let i = 0; i < asteroids.length; i++) {
+                ctx.fillRect(asteroids[i].x, asteroids[i].y, asteroids[i].width, asteroids[i].height);
+                asteroids[i].y += 3; // Movimenta o asteroide para baixo
+
+                // Remove o asteroide quando sai da tela
+                if (asteroids[i].y > canvas.height) {
+                    asteroids.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        // Verifica colisão entre dois objetos retangulares
+        function collisionDetection(rect1, rect2) {
+            return (
+                rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y
+            );
+        }
+
+        // Verifica colisões entre tiros e asteroides
+        function checkCollisions() {
+            for (let i = 0; i < bullets.length; i++) {
+                for (let j = 0; j < asteroids.length; j++) {
+                    if (collisionDetection(bullets[i], asteroids[j])) {
+                        bullets.splice(i, 1); // Remove o tiro
+                        asteroids.splice(j, 1); // Remove o asteroide
+                        score += 10; // Aumenta a pontuação
+                        i--;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Verifica colisão entre a nave e asteroides
+        function checkShipCollision() {
+            for (let i = 0; i < asteroids.length; i++) {
+                if (collisionDetection({ x: shipX, y: shipY, width: shipWidth, height: shipHeight }, asteroids[i])) {
+                    asteroids.splice(i, 1);
+                    lives--; // Diminui as vidas
+                    if (lives === 0) {
+                        gameOver = true; // Fim de jogo
+                    }
+                    i--;
+                }
+            }
+        }
+
+        // Exibe o placar e o número de vidas
+        function updateScoreboard() {
+            scoreboard.innerHTML = `Pontuação: ${score} | Vidas: ${lives}`;
+        }
+
+        // Exibe a tela de Game Over
+        function drawGameOver() {
+            ctx.fillStyle = "white";
+            ctx.font = "30px Arial";
+            ctx.fillText("Game Over", canvas.width / 2 - 80, canvas.height / 2);
+        }
+
+        // Atualiza a tela do jogo
+        function draw() {
+            if (!gameOver) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpa o canvas
+                drawShip();
+                drawBullets();
+                drawAsteroids();
+                checkCollisions();
+                checkShipCollision();
+                generateAsteroids();
+                updateScoreboard();
+
+                // Movimenta a nave para a esquerda ou direita
+                if (rightPressed && shipX < canvas.width - shipWidth) {
+                    shipX += 5;
+                } else if (leftPressed && shipX > 0) {
+                    shipX -= 5;
+                }
+            } else {
+                drawGameOver();
+            }
+        }
+
+        // Atualiza o jogo a cada 20ms
+        setInterval(draw, 20);
+    </script>
+</body>
+</html>

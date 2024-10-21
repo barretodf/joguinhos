@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cobrinha</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid #000;
+            background-color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const box = 20; // Tamanho de cada quadrado
+        let snake = [{ x: box * 5, y: box * 5 }]; // Posição inicial da cobrinha
+        let direction = "RIGHT"; // Direção inicial
+        let food = { x: Math.floor(Math.random() * (canvas.width / box)) * box, 
+                     y: Math.floor(Math.random() * (canvas.height / box)) * box };
+
+        // Controla a direção da cobrinha
+        document.addEventListener("keydown", event => {
+            if (event.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+            else if (event.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+            else if (event.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+            else if (event.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+        });
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpa o canvas
+
+            // Desenha a comida
+            ctx.fillStyle = "red";
+            ctx.fillRect(food.x, food.y, box, box);
+
+            // Desenha a cobrinha
+            for (let i = 0; i < snake.length; i++) {
+                ctx.fillStyle = (i === 0) ? "green" : "lightgreen"; // A cabeça é verde, o corpo é verde claro
+                ctx.fillRect(snake[i].x, snake[i].y, box, box);
+                ctx.strokeStyle = "darkgreen";
+                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+            }
+
+            // Posição anterior da cobrinha
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            // Atualiza a posição da cobrinha com base na direção
+            if (direction === "LEFT") snakeX -= box;
+            if (direction === "UP") snakeY -= box;
+            if (direction === "RIGHT") snakeX += box;
+            if (direction === "DOWN") snakeY += box;
+
+            // Comeu a comida
+            if (snakeX === food.x && snakeY === food.y) {
+                food = {
+                    x: Math.floor(Math.random() * (canvas.width / box)) * box,
+                    y: Math.floor(Math.random() * (canvas.height / box)) * box
+                };
+            } else {
+                // Remove o último segmento da cobrinha
+                snake.pop();
+            }
+
+            // Adiciona a nova posição da cabeça da cobrinha
+            const newHead = { x: snakeX, y: snakeY };
+
+            // Game over se a cobrinha colidir com si mesma ou sair da tela
+            if (snakeX < 0 || snakeY < 0 || snakeX >= canvas.width || snakeY >= canvas.height || collision(newHead, snake)) {
+                clearInterval(game);
+                alert("Game Over");
+            }
+
+            snake.unshift(newHead); // Adiciona a nova cabeça à cobrinha
+        }
+
+        // Função para verificar se a cobrinha colidiu com si mesma
+        function collision(head, array) {
+            for (let i = 0; i < array.length; i++) {
+                if (head.x === array[i].x && head.y === array[i].y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        const game = setInterval(draw, 100); // Chama a função draw a cada 100ms
+    </script>
+</body>
+</html>
